@@ -15,41 +15,7 @@ let userSchema = new Schema({
     history: [String]
 });
 
-let User = mongoose.model('User', userSchema);
-
-mongoose.connect(mongoDBConnectionString, { useNewUrlParser: true, useUnifiedTopology: true });
-
-// Function to find a user by ID
-const getUserById = (id) => {
-    return new Promise((resolve, reject) => {
-        User.findById(id).then(user => {
-            resolve(user);
-        }).catch(err => {
-            reject(err);
-        });
-    });
-};
-
-// Function to check user credentials
-const checkUser = (userData) => {
-    return new Promise((resolve, reject) => {
-        User.findOne({ userName: userData.userName }).then(user => {
-            if (user && bcrypt.compareSync(userData.password, user.password)) {
-                resolve(user);
-            } else {
-                reject("Authentication failed");
-            }
-        }).catch(err => {
-            reject(err);
-        });
-    });
-};
-
-module.exports = {
-    getUserById,
-    checkUser
-    
-};
+let User;
 
 module.exports.connect = function () {
     return new Promise(function (resolve, reject) {
@@ -79,16 +45,20 @@ module.exports.registerUser = function (userData) {
 
                 let newUser = new User(userData);
 
-                newUser.save().then(() => {
-                    resolve("User " + userData.userName + " successfully registered");  
-                }).catch(err => {
-                    if (err.code == 11000) {
-                        reject("User Name already taken");
+                newUser.save(err => {
+                    if (err) {
+                        if (err.code == 11000) {
+                            reject("User Name already taken");
+                        } else {
+                            reject("There was an error creating the user: " + err);
+                        }
+
                     } else {
-                        reject("There was an error creating the user: " + err);
+                        resolve("User " + userData.userName + " successfully registered");
                     }
-                })
-            }).catch(err => reject(err));
+                });
+            })
+                .catch(err => reject(err));
         }
     });
 };
@@ -191,8 +161,12 @@ module.exports.addHistory = function (id, historyId) {
             } else {
                 reject(`Unable to update history for user with id: ${id}`);
             }
+
         })
+
     });
+
+
 }
 
 module.exports.removeHistory = function (id, historyId) {
